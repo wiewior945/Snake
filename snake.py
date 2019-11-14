@@ -10,6 +10,7 @@ class Direction(enum.Enum):
     south = 3
 
 
+speed = 100 #przerwa pomiędzu ruchami węża w ms (szybkosć węża)
 done = False
 isPointAvaiable = False
 #RGB colors:
@@ -23,6 +24,7 @@ windowSize = (boardSize*rectSize) + (boardSize*rectMargin) + rectMargin
 board = []
 #head and tail are tuples which holds board indexes of snake's head and tail
 snake = [[10,11], [10,10], [10,9]]
+point = []  #czerwony punkt
 direction = Direction.east
 rectangle = pygame.Surface((100, 100))
 
@@ -48,11 +50,33 @@ def initSnake():
     pygame.draw.rect(screen, colorBlack, board[snake[2][0]][snake[2][1]])
     
 
-def move():
-    tail = snake[len(snake)-1][:]   # [:] oznacza, że kopiujemy wartosc obiektu, a nie jego adres, a to jest tutaj ważne
+def move(head, addPoint):
+    global isPointAvaiable
+    if addPoint:
+        addPoint = False
+        isPointAvaiable = False
+    else:
+        tail = snake[len(snake)-1][:]   # [:] oznacza, że kopiujemy wartosc obiektu, a nie jego adres, a to jest tutaj ważne
+        pygame.draw.rect(screen, colorWhite, board[tail[0]][tail[1]])
+        snake.remove(tail)
+    snake.insert(0,head)
+    pygame.draw.rect(screen, colorBlack, board[head[0]][head[1]])
+   
+
+def randomPoint():
+    global isPointAvaiable #mówi, że ma korzystać ze zmiennej globalnej, a nie tworzyć nową lokalną w metodzie
+    global point
+    while not isPointAvaiable:
+        x = random.randint(0, boardSize-1)
+        y = random.randint(0, boardSize-1)
+        if snake.count([x,y])==0:
+            pygame.draw.rect(screen, colorRed, board[x][y])
+            isPointAvaiable = True    
+            point = [x,y]
+            
+def colision():
+    addPoint = False
     head = snake[0][:]
-    pygame.draw.rect(screen, colorWhite, board[tail[0]][tail[1]])
-    snake.remove(tail)
     if(direction==Direction.east):
         head[1]+=1
     elif(direction==Direction.north):
@@ -61,18 +85,11 @@ def move():
         head[1]-=1
     elif(direction==Direction.south):
         head[0]+=1
-    snake.insert(0,head)
-    pygame.draw.rect(screen, colorBlack, board[head[0]][head[1]])
-   
-
-def randomPoint():
-    global isPointAvaiable #mówi, że ma korzystać ze zmiennej globalnej, a nie tworzyć nową lokalną w metodzie
-    while not isPointAvaiable:
-        x = random.randint(0, boardSize-1)
-        y = random.randint(0, boardSize-1)
-        if snake.count([x,y])==0:
-            pygame.draw.rect(screen, colorRed, board[x][y])
-            isPointAvaiable = True        
+    
+    if head==point:
+        addPoint = True
+    move(head, addPoint)
+        
 #-----------------------------------------------------------------------------------------------
 
 screen = pygame.display.set_mode((windowSize, windowSize))
@@ -94,9 +111,9 @@ while not done:
         elif pressed[pygame.K_RIGHT]:
             direction=Direction.east
         
-        if(pygame.time.get_ticks()%1000==0): #warunek jest spełniany co sekundę
+        if(pygame.time.get_ticks()%speed==0): #warunek jest spełniany co sekundę
             pygame.time.delay(1)    #usypia program na 1 milisekundę, musiałem to dodać bo czasem w ciągu jednej milisekundy pętla potrafiła wykonać się dwa razy i szły dwa ruchy węża na raz.
+            colision()
             if not isPointAvaiable: randomPoint()
-            move()
             pygame.display.flip()
         
