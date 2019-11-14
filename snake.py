@@ -1,5 +1,6 @@
 import pygame
 import enum
+import random
 
 
 class Direction(enum.Enum):
@@ -10,9 +11,11 @@ class Direction(enum.Enum):
 
 
 done = False
+isPointAvaiable = False
 #RGB colors:
 colorWhite = (255, 255, 255)
 colorBlack = (0, 0, 0)
+colorRed = (255, 0, 0)
 rectSize = 30
 rectMargin = 3
 boardSize = 21  #number of printed rectangles in single line
@@ -60,8 +63,16 @@ def move():
         head[0]+=1
     snake.insert(0,head)
     pygame.draw.rect(screen, colorBlack, board[head[0]][head[1]])
-    
-        
+   
+
+def randomPoint():
+    global isPointAvaiable #mówi, że ma korzystać ze zmiennej globalnej, a nie tworzyć nową lokalną w metodzie
+    while not isPointAvaiable:
+        x = random.randint(0, boardSize-1)
+        y = random.randint(0, boardSize-1)
+        if snake.count([x,y])==0:
+            pygame.draw.rect(screen, colorRed, board[x][y])
+            isPointAvaiable = True        
 #-----------------------------------------------------------------------------------------------
 
 screen = pygame.display.set_mode((windowSize, windowSize))
@@ -85,6 +96,7 @@ while not done:
         
         if(pygame.time.get_ticks()%1000==0): #warunek jest spełniany co sekundę
             pygame.time.delay(1)    #usypia program na 1 milisekundę, musiałem to dodać bo czasem w ciągu jednej milisekundy pętla potrafiła wykonać się dwa razy i szły dwa ruchy węża na raz.
+            if not isPointAvaiable: randomPoint()
             move()
             pygame.display.flip()
         
