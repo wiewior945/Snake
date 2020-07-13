@@ -1,119 +1,122 @@
 import pygame
-import enum
 import random
 
-
-class Direction(enum.Enum):
-    east = 0
-    north = 1
-    west = 2
-    south = 3
+from direction import Direction
+from tf_agents.environments import py_environment
 
 
-speed = 100 #przerwa pomiędzu ruchami węża w ms (szybkosć węża)
-done = False
-isPointAvaiable = False
-#RGB colors:
-colorWhite = (255, 255, 255)
-colorBlack = (0, 0, 0)
-colorRed = (255, 0, 0)
-rectSize = 30
-rectMargin = 3
-boardSize = 21  #number of printed rectangles in single line
-windowSize = (boardSize*rectSize) + (boardSize*rectMargin) + rectMargin
-board = []
-#head and tail are tuples which holds board indexes of snake's head and tail
-snake = [[10,11], [10,10], [10,9]]
-point = []  #czerwony punkt
-direction = Direction.east
-rectangle = pygame.Surface((100, 100))
-
-
-#----------------------------------------------------------------------------------------------
-# tworzy planszę, board to odpowiednik dwuwymiarowej tablicy z obiektami kwadratów
-# druga pętla (j) tworzy poziomy rząd kwadratów, pierwsza pętla dodaje poziomy rząd do głównej tablicy planszy
-def initBoard():
-    coordTop = rectMargin
-    for i in range(boardSize):
-        boardLevel = []
-        coordLeft = rectMargin
-        for j in range(boardSize):
-            boardLevel.append(pygame.draw.rect(screen, colorWhite, pygame.Rect(coordLeft, coordTop, rectSize, rectSize)))
-            coordLeft += rectSize + rectMargin
-        board.append(boardLevel)
-        coordTop += rectSize + rectMargin
-        
-
-def initSnake():
-    pygame.draw.rect(screen, colorBlack, board[snake[0][0]][snake[0][1]])
-    pygame.draw.rect(screen, colorBlack, board[snake[1][0]][snake[1][1]])
-    pygame.draw.rect(screen, colorBlack, board[snake[2][0]][snake[2][1]])
+class Snake(py_environment.PyEnvironment):
     
-
-def move(head, addPoint):
-    global isPointAvaiable
-    if addPoint:
-        addPoint = False
-        isPointAvaiable = False
-    else:
-        tail = snake[len(snake)-1][:]   # [:] oznacza, że kopiujemy wartosc obiektu, a nie jego adres, a to jest tutaj ważne
-        pygame.draw.rect(screen, colorWhite, board[tail[0]][tail[1]])
-        snake.remove(tail)
-    snake.insert(0,head)
-    pygame.draw.rect(screen, colorBlack, board[head[0]][head[1]])
-   
-
-def randomPoint():
-    global isPointAvaiable #mówi, że ma korzystać ze zmiennej globalnej, a nie tworzyć nową lokalną w metodzie
-    global point
-    while not isPointAvaiable:
-        x = random.randint(0, boardSize-1)
-        y = random.randint(0, boardSize-1)
-        if snake.count([x,y])==0:
-            pygame.draw.rect(screen, colorRed, board[x][y])
-            isPointAvaiable = True    
-            point = [x,y]
+    speed = 500 #przerwa pomiędzu ruchami węża w ms (szybkosć węża)
+    done = False
+    isPointAvaiable = False
+    #RGB colors:
+    colorWhite = (255, 255, 255)
+    colorBlack = (0, 0, 0)
+    colorRed = (255, 0, 0)
+    rectSize = 30
+    rectMargin = 3
+    boardSize = 21  #number of printed rectangles in single line
+    windowSize = (boardSize*rectSize) + (boardSize*rectMargin) + rectMargin
+    board = []
+    #head and tail are tuples which holds board indexes of snake's head and tail
+    snake = [[10,11], [10,10], [10,9]]
+    point = []  #czerwony punkt
+    direction = Direction.east
+    rectangle = pygame.Surface((100, 100))
+    screen = pygame.display.set_mode((windowSize, windowSize))
+    
+    
+    #----------------------------------------------------------------------------------------------
+    def __init__(self):
+        print("poszlo")
+        self.initBoard()
+        print("1")
+        self.initSnake()
+        print("2")
+        pygame.init()
+        print("3")
+        
+        while not self.done:
+                for event in pygame.event.get():
+                        if event.type == pygame.QUIT:
+                            self.done = True       
+                pressed = pygame.key.get_pressed()
+                if pressed[pygame.K_UP]:
+                    self.direction=Direction.north
+                elif pressed[pygame.K_DOWN]:
+                    self.direction=Direction.south
+                elif pressed[pygame.K_LEFT]:
+                    self.direction=Direction.west
+                elif pressed[pygame.K_RIGHT]:
+                    self.direction=Direction.east
+                    
+                if(pygame.time.get_ticks()%self.speed==0): #warunek jest spełniany co sekundę
+                    pygame.time.delay(1)    #usypia program na 1 milisekundę, musiałem to dodać bo czasem w ciągu jednej milisekundy pętla potrafiła wykonać się dwa razy i szły dwa ruchy węża na raz.
+                    self.colision()
+                    if not self.isPointAvaiable: self.randomPoint()
+                    pygame.display.flip()
+    
+    
+    # tworzy planszę, board to odpowiednik dwuwymiarowej tablicy z obiektami kwadratów
+    # druga pętla (j) tworzy poziomy rząd kwadratów, pierwsza pętla dodaje poziomy rząd do głównej tablicy planszy
+    def initBoard(self):
+        coordTop = self.rectMargin
+        for i in range(self.boardSize):
+            boardLevel = []
+            coordLeft = self.rectMargin
+            for j in range(self.boardSize):
+                boardLevel.append(pygame.draw.rect(self.screen, self.colorWhite, pygame.Rect(coordLeft, coordTop, self.rectSize, self.rectSize)))
+                coordLeft += self.rectSize + self.rectMargin
+            self.board.append(boardLevel)
+            coordTop += self.rectSize + self.rectMargin
             
-def colision():
-    addPoint = False
-    head = snake[0][:]
-    if(direction==Direction.east):
-        head[1]+=1
-    elif(direction==Direction.north):
-        head[0]-=1
-    elif(direction==Direction.west):
-        head[1]-=1
-    elif(direction==Direction.south):
-        head[0]+=1
     
-    if head==point:
-        addPoint = True
-    move(head, addPoint)
+    def initSnake(self):
+        pygame.draw.rect(self.screen, self.colorBlack, self.board[self.snake[0][0]][self.snake[0][1]])
+        pygame.draw.rect(self.screen, self.colorBlack, self.board[self.snake[1][0]][self.snake[1][1]])
+        pygame.draw.rect(self.screen, self.colorBlack, self.board[self.snake[2][0]][self.snake[2][1]])
         
-#-----------------------------------------------------------------------------------------------
-
-screen = pygame.display.set_mode((windowSize, windowSize))
-initBoard()
-initSnake()
-pygame.init()
-
-while not done:
-        for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    done = True       
-        pressed = pygame.key.get_pressed()
-        if pressed[pygame.K_UP]:
-            direction=Direction.north
-        elif pressed[pygame.K_DOWN]:
-            direction=Direction.south
-        elif pressed[pygame.K_LEFT]:
-            direction=Direction.west
-        elif pressed[pygame.K_RIGHT]:
-            direction=Direction.east
+    
+    def move(self, head, addPoint):
+        if addPoint:
+            addPoint = False
+            self.isPointAvaiable = False
+        else:
+            tail = self.snake[len(self.snake)-1][:]   # [:] oznacza, że kopiujemy wartosc obiektu, a nie jego adres, a to jest tutaj ważne
+            pygame.draw.rect(self.screen, self.colorWhite, self.board[tail[0]][tail[1]])
+            self.snake.remove(tail)
+        self.snake.insert(0,head)
+        pygame.draw.rect(self.screen, self.colorBlack, self.board[head[0]][head[1]])
+       
+    
+    def randomPoint(self):
+        while not self.isPointAvaiable:
+            x = random.randint(0, self.boardSize-1)
+            y = random.randint(0, self.boardSize-1)
+            if self.snake.count([x,y])==0:
+                pygame.draw.rect(self.screen, self.colorRed, self.board[x][y])
+                self.isPointAvaiable = True    
+                self.point = [x,y]
+                
+    def colision(self):
+        addPoint = False
+        head = self.snake[0][:]
+        if(self.direction==Direction.east):
+            head[1]+=1
+        elif(self.direction==Direction.north):
+            head[0]-=1
+        elif(self.direction==Direction.west):
+            head[1]-=1
+        elif(self.direction==Direction.south):
+            head[0]+=1
         
-        if(pygame.time.get_ticks()%speed==0): #warunek jest spełniany co sekundę
-            pygame.time.delay(1)    #usypia program na 1 milisekundę, musiałem to dodać bo czasem w ciągu jednej milisekundy pętla potrafiła wykonać się dwa razy i szły dwa ruchy węża na raz.
-            colision()
-            if not isPointAvaiable: randomPoint()
-            pygame.display.flip()
-        
+        if head==self.point:
+            addPoint = True
+        elif self.snake.count(head)>0:
+            self.done = True
+        self.move(head, addPoint)
+            
+    #-----------------------------------------------------------------------------------------------
+    
+s = Snake()
