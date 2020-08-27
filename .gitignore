@@ -1,2 +1,5 @@
 #ignore python environment
 tf22/
+
+#ignore learning logs
+logs/
