@@ -3,3 +3,5 @@ tf22/
 
 #ignore learning logs
 logs/
+
+test.py

@@ -1,5 +1,6 @@
 # @@@ import pygame
 import random
+import math
 import numpy as np
 
 from direction import Direction
@@ -21,9 +22,9 @@ class Snake(py_environment.PyEnvironment):
     # rectMargin = 3
     boardSize = 21  # number of printed rectangles in single line
     # windowSize = (boardSize*rectSize) + (boardSize*rectMargin) + rectMargin
-    rewardWrongStep = -1
+    rewardWrongStep = -3
     rewardCorrectStep = 1
-    rewardPoint = 100
+    rewardPoint = 10
     rewardEndGame = -100
     #board = []
     point = []  # czerwony punkt
@@ -38,7 +39,7 @@ class Snake(py_environment.PyEnvironment):
     def __init__(self):
         self.learningStep = 0
         self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int32, minimum=0, maximum=2, name='action')
-        self._observation_spec = array_spec.BoundedArraySpec(shape=(5, 2), dtype=np.int32, minimum=0, name='observation')
+        self._observation_spec = array_spec.BoundedArraySpec(shape=(4,), dtype=np.float, minimum=-1., name='observation')
         self._reset()
         # to na dole to jakby się chciało ręcznie poklikać
         # pygame.init()
@@ -64,7 +65,7 @@ class Snake(py_environment.PyEnvironment):
         #self.initBoard()
         self.initSnake()
         self.randomPoint()
-        observation = np.array([[0, 0], [1, 0], [2, 0], [10, 11], self.point], dtype=np.int32)
+        observation = np.append(self.surroundings(self.snake[0]), self.calculateAngle())
         self.learningStep += 1
         return ts.restart(observation)
 
@@ -80,9 +81,8 @@ class Snake(py_environment.PyEnvironment):
         self.debug("Direction: " + str(self.direction))
         colisionOutput = self.colision() # przesunięcie węża, zwraca otoczenie głowy[0], głowę[1] i nagrodę[2]
         observation = colisionOutput[0]
-        observation = np.vstack((observation, colisionOutput[1]))
-        observation = np.vstack((observation, self.point))
-        reward = colisionOutput[2]
+        observation = np.append(observation, colisionOutput[2])
+        reward = colisionOutput[1]
         self.debug("Reward: " + str(reward))
         self.debug("Head: " + str(colisionOutput[1]))
         self.debug("Observation: " + str(observation))
@@ -161,7 +161,7 @@ class Snake(py_environment.PyEnvironment):
 
 
     def surroundings(self, head):
-        surroundings = np.array([99, 99], dtype=np.int32)  # te wartości 99 są tylko do stworzenia tablicy i nadania jej odpowiedniego shape, bez tego tablica nie chciała się zainicjalizować. Na końcu metody te wartości są usunięte
+        surroundings = np.array([], dtype=np.int32)  # te wartości 99 są tylko do stworzenia tablicy i nadania jej odpowiedniego shape, bez tego tablica nie chciała się zainicjalizować. Na końcu metody te wartości są usunięte
 
         # poniżej przesuwa nową głowę odpowiednio do obecnego kierunku
         # ustala nagrodę w zależności od zbliżania się do jabłka lub oddalania się od niego
@@ -170,68 +170,77 @@ class Snake(py_environment.PyEnvironment):
             left = [head[0] - 1, head[1]]
             front = [head[0], head[1] + 1]
             if (self.snake.count(front) > 0 or front[1] >= self.boardSize):
-                surroundings = np.vstack((surroundings, [0, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [0, 0]))
+                surroundings = np.append(surroundings, 0)
             if (self.snake.count(left) > 0 or left[0] < 0):
-                surroundings = np.vstack((surroundings, [1, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [1, 0]))
+                surroundings = np.append(surroundings, 0)
             if (self.snake.count(right) > 0 or right[0] >= self.boardSize):
-                surroundings = np.vstack((surroundings, [2, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [2, 0]))
+                surroundings = np.append(surroundings, 0)
         elif (self.direction == Direction.north):
             front = [head[0] - 1, head[1]]
             left = [head[0], head[1] - 1]
             right = [head[0], head[1] + 1]
             if (self.snake.count(front) > 0 or front[0] < 0):
-                surroundings = np.vstack((surroundings, [0, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [0, 0]))
+                surroundings = np.append(surroundings, 0)
             if (self.snake.count(left) > 0 or left[1] < 0):
-                surroundings = np.vstack((surroundings, [1, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [1, 0]))
+                surroundings = np.append(surroundings, 0)
             if (self.snake.count(right) > 0 or right[1] >= self.boardSize):
-                surroundings = np.vstack((surroundings, [2, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [2, 0]))
+                surroundings = np.append(surroundings, 0)
         elif (self.direction == Direction.west):
             front = [head[0], head[1] - 1]
             left = [head[0] + 1, head[1]]
             right = [head[0] - 1, head[1]]
             if (self.snake.count(front) > 0 or front[1] < 0):
-                surroundings = np.vstack((surroundings, [0, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [0, 0]))
+                surroundings = np.append(surroundings, 0)
             if (self.snake.count(left) > 0 or left[0] >= self.boardSize):
-                surroundings = np.vstack((surroundings, [1, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [1, 0]))
+                surroundings = np.append(surroundings, 0)
             if (self.snake.count(right) > 0 or right[0] < 0):
-                surroundings = np.vstack((surroundings, [2, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [2, 0]))
+                surroundings = np.append(surroundings, 0)
         elif (self.direction == Direction.south):
             front = [head[0] + 1, head[1]]
             left = [head[0], head[1] + 1]
             right = [head[0], head[1] - 1]
             if (self.snake.count(front) > 0 or front[0] >= self.boardSize):
-                surroundings = np.vstack((surroundings, [0, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [0, 0]))
+                surroundings = np.append(surroundings, 0)
             if (self.snake.count(left) > 0 or left[1] >= self.boardSize):
-                surroundings = np.vstack((surroundings, [1, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [1, 0]))
+                surroundings = np.append(surroundings, 0)
             if (self.snake.count(right) > 0 or right[1] < 0):
-                surroundings = np.vstack((surroundings, [2, 1]))
+                surroundings = np.append(surroundings, 1)
             else:
-                surroundings = np.vstack((surroundings, [2, 0]))
-        surroundings = np.delete(surroundings, 0, axis=0)  # usunięcie pierwszego wiersza ([99, 99]), który był potrzebny do zainicjowania tablicy
+                surroundings = np.append(surroundings, 0)
         return surroundings
-
+    
+    
+    def calculateAngle(self):
+        snakeVector = np.array(self.snake[0]) - np.array(self.snake[1])
+        foodVector = np.array(self.point) - np.array(self.snake[0])
+        a = snakeVector / np.linalg.norm(snakeVector) #normalizacja wektora
+        b = foodVector / np.linalg.norm(foodVector)
+        angle = math.atan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1]) / math.pi
+        return angle
+    
+    
     # zwraca: otoczenie głowy (w którą stronę można wykonać ruch bez kolizjii), głowę i nagrodę
     def colision(self):
         addPoint = False
@@ -274,7 +283,8 @@ class Snake(py_environment.PyEnvironment):
         # jeśli nowa głowa znajduje się w ciele węża lub jeśli wyjedzie poza planszę
         elif (self.snake.count(head) > 0 or head[0] < 0 or head[0] >= self.boardSize or head[1] < 0 or head[1] >= self.boardSize):
             self.done = True
-            return np.array([[0, 1], [1, 1], [2, 1]]), head, self.rewardEndGame  # kolizja więc nie potrzeba dalej rysować
+            return np.array([1, 1, 1]), self.rewardEndGame, -1.  # kolizja więc nie potrzeba dalej rysować
         self.move(head, addPoint)
         surroundings = self.surroundings(self.snake[0])
-        return surroundings, head, reward
+        angle = self.calculateAngle()
+        return surroundings, reward, angle
