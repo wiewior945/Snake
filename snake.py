@@ -1,4 +1,3 @@
-# @@@ import pygame
 import random
 import math
 import numpy as np
@@ -11,29 +10,19 @@ from tf_agents.trajectories import time_step as ts
 
 class Snake(py_environment.PyEnvironment):
 
-    debugMode = False
-    # speed = 500  # przerwa pomiędzu ruchami węża w ms (szybkosć węża)
+    debug_mode = False
     done = False
-    # RGB colors:
-    # colorWhite = (255, 255, 255)
-    # colorBlack = (0, 0, 0)
-    # colorRed = (255, 0, 0)
-    # rectSize = 30
-    # rectMargin = 3
-    boardSize = 21  # number of printed rectangles in single line
-    # windowSize = (boardSize*rectSize) + (boardSize*rectMargin) + rectMargin
-    rewardWrongStep = -3
-    rewardCorrectStep = 1
-    rewardPoint = 10
+    board_size = 21
+    reward_wrong_step = -3
+    reward_correct_step = 1
+    reward_point = 10
     rewardEndGame = -100
-    #board = []
-    point = []  # czerwony punkt
+    point = []  # apple
     direction = Direction.east
-    # @@@ screen = pygame.display.set_mode((windowSize, windowSize))
 
 
     def debug(self, text):
-        if self.debugMode:
+        if self.debug_mode:
             print(text)
 
     def __init__(self):
@@ -41,14 +30,6 @@ class Snake(py_environment.PyEnvironment):
         self._action_spec = array_spec.BoundedArraySpec(shape=(), dtype=np.int32, minimum=0, maximum=2, name='action')
         self._observation_spec = array_spec.BoundedArraySpec(shape=(4,), dtype=np.float, minimum=-1., name='observation')
         self._reset()
-        # to na dole to jakby się chciało ręcznie poklikać
-        # pygame.init()
-        # while(True):
-        #     inp = input()
-        #     action = np.array(inp, dtype=np.int32)
-        #     self._step(action)
-        #     pygame.display.flip()
-        #     pygame.time.delay(1000)
 
     def action_spec(self):
         return self._action_spec
@@ -57,29 +38,27 @@ class Snake(py_environment.PyEnvironment):
         return self._observation_spec
 
     def _reset(self):
-        filename = "logs\\new\\" + str(self.learningStep) + ".txt"
+        filename = "E:\\Snake\\new\\" + str(self.learningStep) + ".txt"
         self.logFile = open(filename, "w+")
         self.done = False
-        #self.board = []
         self.direction = Direction.east
-        #self.initBoard()
-        self.initSnake()
-        self.randomPoint()
-        observation = np.append(self.surroundings(self.snake[0]), self.calculateAngle())
+        self.init_snake()
+        self.random_point()
+        observation = np.append(self.surroundings(self.snake[0]), self.calculate_angle())
         self.learningStep += 1
         return ts.restart(observation)
 
-    # Action: 0 = nic, 1 = w lewo, 2 = w prawo
+    # Action: 0 = go forward, 1 = go left, 2 = go right
     def _step(self, action):
         self.debug("--------------------------------------------")
         self.debug("Action: " + str(action))
-        if(self.done):  # jeśli tutaj jest true to oznacza, że w poprzednim kroku było zderzenie i jest reset gry
+        if(self.done):  # if true, it means that snake had a crash in previous step and game needs to be restarted
             self.debug("--- RESET ---")
             return self._reset()
-        if(action!=0):  # jeśli coś innego od 0 to agent chce zmienić kierunek węża
+        if(action!=0):
             self.changeDirection(action)
         self.debug("Direction: " + str(self.direction))
-        colisionOutput = self.colision() # przesunięcie węża, zwraca otoczenie głowy[0], głowę[1] i nagrodę[2]
+        colisionOutput = self.colision()
         observation = colisionOutput[0]
         observation = np.append(observation, colisionOutput[2])
         reward = colisionOutput[1]
@@ -87,34 +66,18 @@ class Snake(py_environment.PyEnvironment):
         self.debug("Head: " + str(colisionOutput[1]))
         self.debug("Observation: " + str(observation))
         jsonString = '{"snake":' + str(self.snake) + ', "observations":' + str(observation.tolist()) + ', "reward":' + str(reward) + ', "apple":' + str(self.point) + '}'
-        if(self.done):  # true jest jeśli doszło do zderzenia
+        self.logFile.write(jsonString + "\n")
+        if(self.done):  # if true, it means that move was illegal
+            self.debug("@@@ koniec")
             return ts.termination(observation, reward)
         else:
-            self.logFile.write(jsonString + "\n")
             return ts.transition(observation, reward)
 
 
-    # tworzy planszę, board to odpowiednik dwuwymiarowej tablicy z obiektami kwadratów
-    # druga pętla (j) tworzy poziomy rząd kwadratów, pierwsza pętla dodaje poziomy rząd do głównej tablicy planszy
-    def initBoard(self):
-        coordTop = self.rectMargin
-        for i in range(self.boardSize):
-            boardLevel = []
-            coordLeft = self.rectMargin
-            for j in range(self.boardSize):
-                # @@@ boardLevel.append(pygame.draw.rect(self.screen, self.colorWhite, pygame.Rect(coordLeft, coordTop, self.rectSize, self.rectSize)))
-                coordLeft += self.rectSize + self.rectMargin
-            self.board.append(boardLevel)
-            coordTop += self.rectSize + self.rectMargin
+    def init_snake(self):
+        self.snake = [[10, 11], [10, 10], [10, 9]]
 
-
-    def initSnake(self):
-        self.snake = [[10,11], [10,10], [10,9]]
-        # @@@ pygame.draw.rect(self.screen, self.colorBlack, self.board[self.snake[0][0]][self.snake[0][1]])
-        # @@@ pygame.draw.rect(self.screen, self.colorBlack, self.board[self.snake[1][0]][self.snake[1][1]])
-        # @@@ pygame.draw.rect(self.screen, self.colorBlack, self.board[self.snake[2][0]][self.snake[2][1]])
-
-    # action 1 = lewo, action 2 = prawo
+    # action 1 = turn left, action 2 = turn right
     def changeDirection(self, action):
         if(self.direction == Direction.east):
             if(action == 1):
@@ -138,38 +101,32 @@ class Snake(py_environment.PyEnvironment):
                 self.direction = Direction.east
 
 
-    # rysuje głowę w nowym miejscu i ucina ogon lub go zostawia jeśli nowa głowa jest równa jabłku
+    # add new head to the snake and cut snake's tail if apple has not been eaten
     def move(self, head, addPoint):
-        if not addPoint:  # jeśli zjadł jabłko to nie ucinam ogona
-            tail = self.snake[len(self.snake)-1][:]   # [:] oznacza, że kopiujemy wartosc obiektu, a nie jego adres, a to jest tutaj ważne
-            # @@@ pygame.draw.rect(self.screen, self.colorWhite, self.board[tail[0]][tail[1]])
+        if not addPoint:
+            tail = self.snake[len(self.snake)-1][:]
             self.snake.remove(tail)
-        self.snake.insert(0,head)  # dodaje do węża głowę w nowym miejscu
-        # @@@ pygame.draw.rect(self.screen, self.colorBlack, self.board[head[0]][head[1]]) #rysuje głowę w nowym miejscu
+        self.snake.insert(0, head)
         if(addPoint):
-            self.randomPoint()
+            self.random_point()
 
-    def randomPoint(self):
+    def random_point(self):
         isPointAvailable = False
         while not isPointAvailable:
-            x = random.randint(0, self.boardSize-1)
-            y = random.randint(0, self.boardSize-1)
+            x = random.randint(0, self.board_size - 1)
+            y = random.randint(0, self.board_size - 1)
             if self.snake.count([x, y])==0:
-                # @@@ pygame.draw.rect(self.screen, self.colorRed, self.board[x][y])
                 isPointAvailable = True
-                self.point = [x,y]
+                self.point = [x, y]
 
 
     def surroundings(self, head):
-        surroundings = np.array([], dtype=np.int32)  # te wartości 99 są tylko do stworzenia tablicy i nadania jej odpowiedniego shape, bez tego tablica nie chciała się zainicjalizować. Na końcu metody te wartości są usunięte
-
-        # poniżej przesuwa nową głowę odpowiednio do obecnego kierunku
-        # ustala nagrodę w zależności od zbliżania się do jabłka lub oddalania się od niego
+        surroundings = np.array([], dtype=np.int32)
         if (self.direction == Direction.east):
             right = [head[0] + 1, head[1]]
             left = [head[0] - 1, head[1]]
             front = [head[0], head[1] + 1]
-            if (self.snake.count(front) > 0 or front[1] >= self.boardSize):
+            if (self.snake.count(front) > 0 or front[1] >= self.board_size):
                 surroundings = np.append(surroundings, 1)
             else:
                 surroundings = np.append(surroundings, 0)
@@ -177,7 +134,7 @@ class Snake(py_environment.PyEnvironment):
                 surroundings = np.append(surroundings, 1)
             else:
                 surroundings = np.append(surroundings, 0)
-            if (self.snake.count(right) > 0 or right[0] >= self.boardSize):
+            if (self.snake.count(right) > 0 or right[0] >= self.board_size):
                 surroundings = np.append(surroundings, 1)
             else:
                 surroundings = np.append(surroundings, 0)
@@ -193,7 +150,7 @@ class Snake(py_environment.PyEnvironment):
                 surroundings = np.append(surroundings, 1)
             else:
                 surroundings = np.append(surroundings, 0)
-            if (self.snake.count(right) > 0 or right[1] >= self.boardSize):
+            if (self.snake.count(right) > 0 or right[1] >= self.board_size):
                 surroundings = np.append(surroundings, 1)
             else:
                 surroundings = np.append(surroundings, 0)
@@ -205,7 +162,7 @@ class Snake(py_environment.PyEnvironment):
                 surroundings = np.append(surroundings, 1)
             else:
                 surroundings = np.append(surroundings, 0)
-            if (self.snake.count(left) > 0 or left[0] >= self.boardSize):
+            if (self.snake.count(left) > 0 or left[0] >= self.board_size):
                 surroundings = np.append(surroundings, 1)
             else:
                 surroundings = np.append(surroundings, 0)
@@ -217,11 +174,11 @@ class Snake(py_environment.PyEnvironment):
             front = [head[0] + 1, head[1]]
             left = [head[0], head[1] + 1]
             right = [head[0], head[1] - 1]
-            if (self.snake.count(front) > 0 or front[0] >= self.boardSize):
+            if (self.snake.count(front) > 0 or front[0] >= self.board_size):
                 surroundings = np.append(surroundings, 1)
             else:
                 surroundings = np.append(surroundings, 0)
-            if (self.snake.count(left) > 0 or left[1] >= self.boardSize):
+            if (self.snake.count(left) > 0 or left[1] >= self.board_size):
                 surroundings = np.append(surroundings, 1)
             else:
                 surroundings = np.append(surroundings, 0)
@@ -232,59 +189,63 @@ class Snake(py_environment.PyEnvironment):
         return surroundings
     
     
-    def calculateAngle(self):
+    def calculate_angle(self):
         snakeVector = np.array(self.snake[0]) - np.array(self.snake[1])
         foodVector = np.array(self.point) - np.array(self.snake[0])
-        a = snakeVector / np.linalg.norm(snakeVector) #normalizacja wektora
+        a = snakeVector / np.linalg.norm(snakeVector)
         b = foodVector / np.linalg.norm(foodVector)
         angle = math.atan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1]) / math.pi
         return angle
     
-    
-    # zwraca: otoczenie głowy (w którą stronę można wykonać ruch bez kolizjii), głowę i nagrodę
+
+    # returns: head surroundings, new snake's head and reward
     def colision(self):
         addPoint = False
         reward = 0
-        head = self.snake[0][:]  # snake[0] to głowa węża. [:] kopiuje wartość obiektu, a nie jego adres. Head jest nowym obiektem z taką samą wartością jak głowa węża.
+        head = self.snake[0][:]  # snake[0] is snake's head. [:] copies object's value, not its address. Head is new object with the same value as snake's head
 
-        # poniżej przesuwa nową głowę odpowiednio do obecnego kierunku
-        # ustala nagrodę w zależności od zbliżania się do jabłka lub oddalania się od niego
+        # changing new head coords according to snake's direction
+        # establish reward which will be returned by function, based on approaching or moving away from apple
         if(self.direction==Direction.east):
             head[1] += 1
             if(self.point[1] >= head[1]):
-                reward = self.rewardCorrectStep
+                reward = self.reward_correct_step
             elif(self.point[1] < head[1]):
-                reward = self.rewardWrongStep
+                reward = self.reward_wrong_step
 
         elif(self.direction==Direction.north):
             head[0] -= 1
             if(self.point[0] <= head[0]):
-                reward = self.rewardCorrectStep
+                reward = self.reward_correct_step
             elif(self.point[0] > head[0]):
-                reward = self.rewardWrongStep
+                reward = self.reward_wrong_step
 
         elif(self.direction==Direction.west):
             head[1] -= 1
             if(self.point[1] <= head[1]):
-                reward = self.rewardCorrectStep
+                reward = self.reward_correct_step
             elif(self.point[1] > head[1]):
-                reward = self.rewardWrongStep
+                reward = self.reward_wrong_step
 
         elif(self.direction==Direction.south):
             head[0] += 1
             if(self.point[0] >= head[0]):
-                reward = self.rewardCorrectStep
+                reward = self.reward_correct_step
             elif(self.point[0] < head[0]):
-                reward = self.rewardWrongStep
+                reward = self.reward_wrong_step
 
-        if head==self.point:  # jeśli nowa głowa jest równa koordynatom jabłka
+        if head==self.point:  # whether new head is the same as apple coordinates
             addPoint = True
-            reward = self.rewardPoint
-        # jeśli nowa głowa znajduje się w ciele węża lub jeśli wyjedzie poza planszę
-        elif (self.snake.count(head) > 0 or head[0] < 0 or head[0] >= self.boardSize or head[1] < 0 or head[1] >= self.boardSize):
+            reward = self.reward_point
+        # if new head is the same as piece of snake's body or it's out of game board
+        elif (self.snake.count(head) > 0 or head[0] < 0 or head[0] >= self.board_size or head[1] < 0 or head[1] >= self.board_size):
             self.done = True
-            return np.array([1, 1, 1]), self.rewardEndGame, -1.  # kolizja więc nie potrzeba dalej rysować
+            self.debug("-----------------koniec---------------------")
+            self.debug(self.snake)
+            self.debug("head")
+            self.debug(head)
+            return np.array([1, 1, 1]), self.rewardEndGame, -1.  # colision, so no need to calculate observations
         self.move(head, addPoint)
         surroundings = self.surroundings(self.snake[0])
-        angle = self.calculateAngle()
+        angle = self.calculate_angle()
         return surroundings, reward, angle
